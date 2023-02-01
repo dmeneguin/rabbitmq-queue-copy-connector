@@ -1,0 +1,12 @@
+version: "1"
+services:  
+  consumer:
+    build:
+      context: .
+    command: "python3 app.py"
+    networks:
+      - consumer-net
+
+networks:
+  consumer-net:
+    name: rabbit-net

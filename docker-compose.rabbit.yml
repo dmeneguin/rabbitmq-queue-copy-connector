@@ -1,0 +1,26 @@
+version: "3.11.8"
+services:
+  rabbitmq_upstream:
+    image: rabbitmq:3.9.16-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ./rabbitmq-conf/upstream:/etc/rabbitmq/conf.d
+    networks:
+      - rabbit-net      
+
+  rabbitmq_downstream:
+    image: rabbitmq:3.9.16-management
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - ./rabbitmq-conf/downstream:/etc/rabbitmq/conf.d
+    networks:
+      - rabbit-net
+
+networks:
+  rabbit-net:
+    name: rabbit-net
+    driver: bridge
