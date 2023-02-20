@@ -1,19 +1,38 @@
 {
-    "users": [
-        {
-          "name": "guest",
-          "password_hash": "BMfxN8drrYcIqXZMr+pWTpDT0nMcOagMduLX0bjr4jwud/pN",
-          "hashing_algorithm": "rabbit_password_hashing_sha256",
-          "tags": [
-            "administrator"
-          ],
-          "limits": {}
-        }
+    "users": [{
+      "name": "guest",
+      "password_hash": "BMfxN8drrYcIqXZMr+pWTpDT0nMcOagMduLX0bjr4jwud/pN",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": [
+        "administrator"
       ],
-    "vhosts":[
-        {"name":"/"}
-    ],
-    "queues":[
-        {"name":"downstream_queue","vhost":"/","durable":true,"auto_delete":false,"arguments":{}}
-    ]
+      "limits": {}
+    }],
+    "vhosts": [{
+      "name":"/"
+    }],
+    "exchanges": [{
+      "name": "downstream_exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }],
+    "queues": [{
+      "name": "downstream_queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }],
+    "bindings": [{
+      "source": "downstream_exchange",
+      "vhost": "/",
+      "destination": "downstream_queue",
+      "destination_type": "queue",
+      "routing_key": "route_to_everybody",
+      "arguments": {}
+    }]
 }

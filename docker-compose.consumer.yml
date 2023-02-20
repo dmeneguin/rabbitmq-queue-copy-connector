@@ -3,6 +3,12 @@ services:
   consumer:
     build:
       context: .
+    environment:
+      - DOWNSTREAM_EXCHANGE=downstream_exchange
+      - DOWNSTREAM_ROUTING_KEY=route_to_everybody
+      - UPSTREAM_QUEUE=upstream_queue
+      - UPSTREAM_HOST=rabbitmq_upstream
+      - DOWNSTREAM_HOST=rabbitmq_downstream
     command: "python3 app.py"
     restart: always
     networks:

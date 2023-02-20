@@ -3,7 +3,7 @@ import logging.config
 import sys
 import threading
 import traceback
-from typing import Optional
+import os
 
 from pika import ConnectionParameters, PlainCredentials
 from pika.adapters import BlockingConnection
@@ -36,7 +36,11 @@ logging.config.dictConfig(
 
 logger = logging.getLogger(__name__)
 
-
+DOWNSTREAM_EXCHANGE=os.environ['DOWNSTREAM_EXCHANGE']
+DOWNSTREAM_ROUTING_KEY=os.environ['DOWNSTREAM_ROUTING_KEY']
+UPSTREAM_QUEUE=os.environ['UPSTREAM_QUEUE']
+UPSTREAM_HOST=os.environ['UPSTREAM_HOST']
+DOWNSTREAM_HOST=os.environ['DOWNSTREAM_HOST']
 class Publisher(threading.Thread):
     def __init__(
         self,
@@ -48,10 +52,10 @@ class Publisher(threading.Thread):
         self.daemon = True
         self.is_running = True
         self.name = "Publisher"
-        self.queue = "downstream_queue"
+        self.exchange = DOWNSTREAM_EXCHANGE
+        self.routing_key = DOWNSTREAM_ROUTING_KEY
         self.connection = BlockingConnection(connection_params)
         self.channel = self.connection.channel()
-        #self.channel.queue_declare(queue=self.queue, auto_delete=True)
         self.channel.confirm_delivery()
 
     def run(self):
@@ -76,7 +80,7 @@ class Publisher(threading.Thread):
 
     def _publish(self, message):
         logger.info("Calling '_publish'")
-        self.channel.basic_publish("", self.queue, body=message.encode())
+        self.channel.basic_publish(exchange=self.exchange,routing_key=self.routing_key,body=message.encode())
 
     def publish(self, message):
         logger.info("Calling 'publish'")
@@ -100,10 +104,9 @@ class Consumer:
         downstream_connection_params: ConnectionParameters
     ):
         self.publisher = Publisher(downstream_connection_params)
-        self.queue = "upstream_queue"
+        self.queue = UPSTREAM_QUEUE
         self.connection = BlockingConnection(connection_params)
         self.channel = self.connection.channel()
-        #self.channel.queue_declare(queue=self.queue, auto_delete=True)
         self.channel.basic_qos(prefetch_count=1)
 
     def start(self):
@@ -149,19 +152,18 @@ class Consumer:
 if __name__ == "__main__":
     creds = PlainCredentials("guest", "guest")
     upstream_rmq = ConnectionParameters(
-        host="rabbitmq_upstream",
+        host=UPSTREAM_HOST,
         virtual_host="/",
         credentials=creds,
     )
     # The heartbeat value is set to a purposefully low number to demonstrate
     # that heartbeats are correctly handled
     downstream_rmq = ConnectionParameters(
-        host="rabbitmq_downstream",
+        host=DOWNSTREAM_HOST,
         virtual_host="/",
         credentials=creds,
         heartbeat=10,
     )
-
 
     consumer = Consumer(upstream_rmq, downstream_rmq)
     logger.info(f"Started Consumer")
