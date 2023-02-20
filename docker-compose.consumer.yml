@@ -4,6 +4,7 @@ services:
     build:
       context: .
     command: "python3 app.py"
+    restart: always
     networks:
       - consumer-net
 

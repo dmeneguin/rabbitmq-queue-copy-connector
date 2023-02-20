@@ -67,9 +67,12 @@ class Publisher(threading.Thread):
         # people just call `channel.basic_publish` directly.
 
         # pass
-
-        while self.is_running:
-            self.connection.process_data_events(time_limit=1)
+        while self.is_running:        
+            try:            
+                self.connection.process_data_events(time_limit=1)
+            except Exception as e:
+                traceback.print_exception(*sys.exc_info())
+                self.is_running = False
 
     def _publish(self, message):
         logger.info("Calling '_publish'")
@@ -87,16 +90,16 @@ class Publisher(threading.Thread):
         if self.connection.is_open:
             self.connection.close()
             logger.info("Connection closed")
-        logger.info("Stopped")
+        logger.info("Stopped") 
 
 
 class Consumer:
     def __init__(
         self,
         connection_params: ConnectionParameters,
-        publisher: Optional["Publisher"] = None,
+        downstream_connection_params: ConnectionParameters
     ):
-        self.publisher = publisher
+        self.publisher = Publisher(downstream_connection_params)
         self.queue = "upstream_queue"
         self.connection = BlockingConnection(connection_params)
         self.channel = self.connection.channel()
@@ -108,6 +111,8 @@ class Consumer:
             queue=self.queue, on_message_callback=self.on_message
         )
         try:
+            self.publisher.start()
+            logger.info(f"Started Publisher")
             self.channel.start_consuming()
         except KeyboardInterrupt:
             logger.info("Warm shutdown requested...")
@@ -125,9 +130,9 @@ class Consumer:
             else:
                 logger.info(f"No publisher provided, printing message: {message!r}")
             self.channel.basic_ack(delivery_tag=m.delivery_tag)
-        except Exception:
-            traceback.print_exception(*sys.exc_info())
-            self.channel.basic_nack(delivery_tag=m.delivery_tag, requeue=False)
+        except Exception as e:
+            self.channel.basic_nack(delivery_tag=m.delivery_tag, requeue=True)
+            raise e
 
     def stop(self):
         logger.info("Stopping consuming...")
@@ -157,17 +162,10 @@ if __name__ == "__main__":
         heartbeat=10,
     )
 
-    publisher = Publisher(downstream_rmq)
-    publisher.start()
-    logger.info(f"Started Publisher")
 
-    consumer = Consumer(upstream_rmq, publisher)
+    consumer = Consumer(upstream_rmq, downstream_rmq)
     logger.info(f"Started Consumer")
     logger.info(
         "Go to http://localhost:7001/#/queues/%2F/upstream_queue and post a message into the 'upstream_queue'."
     )
-    try:
-        consumer.start()
-    except KeyboardInterrupt:
-        consumer.stop()
-        publisher.join()
+    consumer.start()
